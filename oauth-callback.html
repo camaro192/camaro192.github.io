@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RideFrame - Connecting to Strava</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #ff7b00, #ff9500);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+        .success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="spinner" id="spinner"></div>
+        <h2>Connecting to RideFrame...</h2>
+        <p id="message">Processing your Strava authorization...</p>
+    </div>
+
+    <script>
+        function showError(message) {
+            const container = document.getElementById('container');
+            const spinner = document.getElementById('spinner');
+            const messageEl = document.getElementById('message');
+            
+            container.classList.add('error');
+            spinner.style.display = 'none';
+            messageEl.textContent = message;
+            
+            setTimeout(() => {
+                window.close();
+            }, 3000);
+        }
+
+        function showSuccess() {
+            const container = document.getElementById('container');
+            const spinner = document.getElementById('spinner');
+            const messageEl = document.getElementById('message');
+            
+            container.classList.add('success');
+            spinner.style.display = 'none';
+            messageEl.textContent = 'Success! Redirecting to RideFrame...';
+        }
+
+        // Parse URL parameters
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Main logic
+        window.addEventListener('load', function() {
+            // Check for authorization code
+            const code = getUrlParameter('code');
+            const error = getUrlParameter('error');
+            const state = getUrlParameter('state');
+
+            console.log('OAuth callback received:', { code: code ? 'present' : 'missing', error, state });
+
+            if (error) {
+                console.error('OAuth error:', error);
+                showError(`Authentication failed: ${error}`);
+                return;
+            }
+
+            if (!code) {
+                console.error('No authorization code received');
+                showError('No authorization code received from Strava');
+                return;
+            }
+
+            // Success - redirect back to the app
+            showSuccess();
+            
+            // Construct the app URL with the code
+            const appUrl = `rideframe://oauth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || '')}`;
+            
+            console.log('Redirecting to app:', appUrl);
+            
+            // Try to redirect to the app
+            setTimeout(() => {
+                try {
+                    window.location.href = appUrl;
+                    
+                    // Fallback: if the redirect doesn't work, show instructions
+                    setTimeout(() => {
+                        document.getElementById('message').innerHTML = 
+                            'If RideFrame didn\'t open automatically, please return to the app manually.<br><br>' +
+                            'You can close this window now.';
+                    }, 2000);
+                } catch (e) {
+                    console.error('Failed to redirect to app:', e);
+                    document.getElementById('message').textContent = 
+                        'Please return to RideFrame app. You can close this window now.';
+                }
+            }, 1000);
+        });
+
+        // Handle cases where the user navigates back
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                location.reload();
+            }
+        });
+    </script>
+</body>
+</html>
